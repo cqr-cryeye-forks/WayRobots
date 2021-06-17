@@ -58,10 +58,11 @@ def fetch_content(ts, target):
     ts_dirs = []
     for timestap in ts:
         try:
-            content = requests.get("http://web.archive.org/web/{}if_/{}".format(timestap, target)).content
+            content = requests.get("http://web.archive.org/web/{}if_/{}".format(timestap, target)).content.decode("utf-8")
             dirs = parse_robots(content)
             ts_dirs.append({timestap: dirs})
-        except:
+        except TypeError as e:
+            print(e)
             pass
     return ts_dirs
 
@@ -127,7 +128,7 @@ def crawling_robots(endpoint):
     else:
         endpoint = ".*" + endpoint + ".*"
     content = requests.get(
-        "http://web.archive.org/cdx/search/cdx?url={}&matchType=prefix&from={}&to={}&output=txt&collapse=urlkey&fl=original".format(target,year_from,year_to)).content
+        "http://web.archive.org/cdx/search/cdx?url={}&matchType=prefix&from={}&to={}&output=txt&collapse=urlkey&fl=original".format(target,year_from,year_to)).content.decode("utf-8")
     files = re.findall(endpoint, content)
     return files
 
@@ -153,28 +154,27 @@ if not "-" in args.year:
 year = args.year
 target = args.input
 
-pprint("Searching for robots.txt on *.%s" % target)
-
 robots_txt = set(wayback_find_robots(target))
 
 if len(robots_txt) == 0:
-    pprint("[ERROR] Wasn't able to find any [robots.txt] files")
+    pprint("[robots.txt] files not found!")
     exit()
 
-pprint("Found [robots.txt] on the following:\n\n  *- " + '\n  *- '.join(robots_txt) + "\n")
+pprint("Found [robots.txt] on the following:\n\n" + '\n'.join(robots_txt) + "\n")
 
 year_from = int(year.split("-")[0])
 year_to = int(year.split("-")[1])
 
 for year in range(year_from, year_to + 1):
     for robot_file in robots_txt:
-        pprint("[%s]::[%s] Searching for [robots.txt] snapshot" % (year, robot_file))
+
         wb = wayback_url(robot_file, year)
 
         _tmp = []
         for result in wb:
             for dir_name in result[1]:
                 if dir_name not in _tmp:
+                    pprint("[%s]::[%s] Searching for [robots.txt] snapshot" % (year, robot_file))
                     pprint("  |_-> " + dir_name)
                     if dir_name != "/":
                         for i in range(len(crawling_robots(dir_name))):
